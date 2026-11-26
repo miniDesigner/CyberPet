@@ -206,5 +206,65 @@ test('调试加速档位生效', () => {
   st.setTimeScale(0);
 });
 
+test('精力低于阈值自动入睡，玩家没有主动休息操作', () => {
+  const st = mk();
+  const pet = hatchPet(st);
+  assert.strictEqual(CFG.INTERACT.rest, undefined, '休息不应是玩家互动项');
+  assert.strictEqual(pet.sleeping, false, '破壳时应清醒');
+  pet.stats.energy = CFG.REST.enterEnergy + 5; // 幼体 -2/h，6h 后跌破阈值
+  step(st, 6);
+  assert.strictEqual(pet.sleeping, true, '精力过低应自动入睡');
+  assert(st.save.records.some(r => r.event === 'sleep_start'), '入睡应写入豢养记录');
+});
+
+test('睡眠期间禁止喂食，其他护理仍可进行', () => {
+  const st = mk();
+  const pet = hatchPet(st);
+  st.debugSetSleep(true);
+  pet.stats.satiety = 30;
+  const before = pet.stats.satiety;
+  assert.strictEqual(st.feed(), false, '睡眠中喂食应被拦截');
+  assert.strictEqual(pet.stats.satiety, before, '被拦截的喂食不应改变饱食');
+  assert(st.drainEvents().some(e => e.type === 'feed_blocked'), '应发出喂食被拦截事件');
+  assert.strictEqual(st.interact('bath'), true, '睡眠中清洁不受影响');
+  assert(pet.stats.hygiene > 70);
+});
+
+test('睡眠中精力自动恢复，达到阈值自然醒', () => {
+  const st = mk();
+  const pet = hatchPet(st);
+  st.debugSetSleep(true);
+  assert.strictEqual(pet.sleeping, true);
+  step(st, 10); // 单帧 10h：恢复 +10/h，越过 wakeEnergy
+  assert.strictEqual(pet.sleeping, false, '精力恢复后应自动醒来');
+  assert(pet.stats.energy >= CFG.REST.wakeEnergy, '醒来时精力应达阈值');
+  assert(st.save.records.some(r => r.event === 'sleep_end'), '醒来应写入豢养记录');
+});
+
+test('虚弱时不入睡，睡眠中转虚弱则强制唤醒', () => {
+  const st = mk();
+  const pet = hatchPet(st);
+  pet.stats.health = 30;
+  pet.stats.energy = 5;
+  step(st, 1);
+  assert.strictEqual(pet.sleeping, false, '虚弱时不应入睡，否则喂食被拦无法救治');
+  st.debugSetSleep(true);
+  assert.strictEqual(pet.sleeping, true);
+  pet.stats.health = 30;
+  step(st, 1);
+  assert.strictEqual(pet.sleeping, false, '睡眠中转虚弱应强制醒来');
+});
+
+test('后代继承后默认清醒，不继承睡眠状态', () => {
+  const st = mk();
+  const parent = hatchPet(st);
+  st.debugInjectOffspring();
+  st.debugSetSleep(true);
+  assert.strictEqual(parent.sleeping, true);
+  st.debugKill('age');
+  const child = st.save.mainPet;
+  assert.strictEqual(child.sleeping, false, '继位后代应清醒');
+});
+
 console.log('\n结果: ' + pass + ' passed, ' + fail + ' failed\n');
 if (fail > 0) process.exit(1);

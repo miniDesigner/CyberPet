@@ -89,9 +89,16 @@
     plant:     { satiety: 22, mood: 5, label: '植食' },
     bath:      { hygiene: 30, label: '泥浴' },
     pet:       { mood: 8, cooldownMs: 10000, label: '抚摸' },
-    rest:      { energyPerMinute: 2, label: '休息' },
     herb:      { health: 30, label: '药草' },
     careEgg:   { mood: 10, label: '照看蛋' }
+  };
+
+  // 自动休息：不是玩家操作，精力过低时宠物自行入睡并恢复
+  var REST = {
+    enterEnergy: 20,      // 精力低于此值自动入睡
+    wakeEnergy: 70,       // 恢复到此值自动醒来
+    recoverPerHour: 10,   // 睡眠时每小时恢复精力（高于各阶段衰减）
+    weakGuard: 40         // 健康低于此值不入睡，避免喂食被拦导致虚弱无法处理
   };
 
   var STAGE_LABEL = {
@@ -112,6 +119,7 @@
     DECAY: DECAY,
     OFFLINE: OFFLINE,
     HEALTH: HEALTH,
+    REST: REST,
     INTERACT: INTERACT,
     STAGE_LABEL: STAGE_LABEL,
     FORM_LABEL: FORM_LABEL,

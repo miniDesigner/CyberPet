@@ -163,11 +163,11 @@
   }
 
   // ---------- 恐龙 ----------
-  function drawPet(ctx, pet, cx, cy, scale, t, mood) {
+  function drawPet(ctx, pet, cx, cy, scale, t, mood, sleeping) {
     var sp = CFG.SPECIES[pet.species];
     var col = sp.colors;
     scale = scale || 1;
-    var breathe = Math.sin(t / 700) * 2;
+    var breathe = sleeping ? Math.sin(t / 1400) * 3 : Math.sin(t / 700) * 2;
     ctx.save();
     ctx.translate(cx, cy + breathe);
     ctx.scale(scale, scale);
@@ -190,6 +190,26 @@
       ctx.globalAlpha = 0.5; ctx.fillStyle = col.eye;
       ctx.beginPath(); ctx.arc(-52, -66, 5, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
+    }
+
+    // 睡眠表现：闭眼 + 缓慢浮动的 Zzz（休息是自动行为，不出现在玩家操作中）
+    if (sleeping) {
+      var eye = pet.species === 'trex' ? [-64, -30, 8, -30, -84]
+        : pet.species === 'plesiosaurus' ? [-98 + Math.sin(t / 800) * 6, -106, 6, -66, -140]
+          : [-56, -18, 7, -30, -80];
+      ctx.fillStyle = bodyColor; // 盖住原本睁开的眼睛
+      ctx.beginPath();
+      ctx.ellipse(eye[0], eye[1], eye[2], eye[2] * 0.85, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = col.mark; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(eye[0], eye[1] + 2, eye[2] * 0.72, Math.PI * 0.12, Math.PI * 0.88);
+      ctx.stroke();
+      var float = Math.sin(t / 900) * 3;
+      ctx.fillStyle = C.blue; ctx.textAlign = 'center';
+      ctx.font = '700 14px sans-serif'; ctx.fillText('Z', eye[3], eye[4] + float);
+      ctx.font = '700 10px sans-serif'; ctx.fillText('z', eye[3] + 12, eye[4] - 10 + float);
+      ctx.font = '700 8px sans-serif';  ctx.fillText('z', eye[3] + 20, eye[4] - 18 + float);
     }
     ctx.restore();
   }

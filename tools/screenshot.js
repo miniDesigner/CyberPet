@@ -41,12 +41,29 @@ fs.mkdirSync(OUT, { recursive: true });
   await page.waitForTimeout(250);
   await page.screenshot({ path: path.join(OUT, '05-care.png') });
 
+  // 强制入睡 → 验证闭眼 / Zzz 表现与喂食拦截
+  await page.evaluate(() => { MAIN.getStore().debugSetSleep(true); });
+  await page.waitForTimeout(1700); // 等 toast 消失再截图
+  await page.screenshot({ path: path.join(OUT, '05b-sleep.png') });
+  const feedCheck = await page.evaluate(() => {
+    const st = MAIN.getStore();
+    const before = st.save.mainPet.stats.satiety;
+    const ok = st.feed();
+    return { sleeping: st.save.mainPet.sleeping, feedAccepted: ok, satietyBefore: before, satietyAfter: st.save.mainPet.stats.satiety };
+  });
+  console.log('睡眠喂食拦截:', JSON.stringify(feedCheck));
+  if (feedCheck.sleeping && (feedCheck.feedAccepted || feedCheck.satietyAfter !== feedCheck.satietyBefore)) {
+    errors.push('ASSERT: 睡眠期间喂食未被拦截');
+  }
+  await page.evaluate(() => { MAIN.getStore().debugSetSleep(false); });
+  await page.waitForTimeout(150);
+
   // 调试面板（右上）
   await page.mouse.click(385, 29);
   await page.waitForTimeout(250);
   await page.screenshot({ path: path.join(OUT, '06-debug.png') });
-  // 关闭
-  await page.mouse.click(210, 740);
+  // 关闭（返回按钮中心约 y=732）
+  await page.mouse.click(210, 732);
   await page.waitForTimeout(200);
 
   // 注入后代 + 强制自然死亡 → 继承

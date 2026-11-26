@@ -76,8 +76,14 @@
     } else if (evt.type === 'weak_start') {
       showToast('宠物状态虚弱，请细心照料！');
     } else if (evt.type === 'interact') {
-      var m = { meat: '喂食成功', plant: '喂食成功', bath: '清洁完成', pet: '抚摸', herb: '治疗完成', rest: '休息片刻' };
+      var m = { meat: '喂食成功', plant: '喂食成功', bath: '清洁完成', pet: '抚摸', herb: '治疗完成' };
       showToast(m[evt.data.action] || '完成');
+    } else if (evt.type === 'sleep_start') {
+      showToast('精力耗尽，它自己睡着了');
+    } else if (evt.type === 'sleep_end') {
+      showToast(evt.data.forced ? '它虚弱地醒来了' : '它睡醒了，精神不错');
+    } else if (evt.type === 'feed_blocked') {
+      showToast('它正在睡觉，等醒来再喂');
     }
   }
 
@@ -173,8 +179,16 @@
     R.rr(ctx, lx, 84, Math.max(8, lw * lifeProg), 8, 4);
     ctx.fillStyle = isSenior ? R.C.red : R.C.brown; ctx.fill();
 
+    // 睡眠状态提示（宠物上方）
+    if (pet.sleeping) {
+      // 蛇颈龙头部更高，提示相应上移，避免与 Zzz 重叠
+      var tipY = L.stageY - (pet.species === 'plesiosaurus' ? 185 : 134);
+      R.text(ctx, '💤 睡眠中 · 精力恢复 ' + Math.round(pet.stats.energy) + '→' + CFG.REST.wakeEnergy,
+        L.cx, tipY, 12, R.C.blue, 'center', '600');
+    }
+
     // 宠物
-    R.drawPet(ctx, pet, L.cx, L.stageY, L.stageScale, t, pet.stats.mood);
+    R.drawPet(ctx, pet, L.cx, L.stageY, L.stageScale, t, pet.stats.mood, pet.sleeping);
 
     // 后代槽位小窗（Demo 调试注入后可见）
     if (store.save.offspringSlot) {
@@ -197,11 +211,12 @@
     // 操作按钮
     var diet = sp.diet === '植食' ? '植食' : '肉类';
     var btns = [
-      { x: L.cx - 150, y: L.btnY, w: 140, h: 44, label: '喂食(' + diet + ')', id: 'feed', primary: true, color: R.C.green },
+      { x: L.cx - 150, y: L.btnY, w: 140, h: 44,
+        label: pet.sleeping ? '喂食(睡眠中)' : '喂食(' + diet + ')',
+        id: 'feed', primary: true, color: pet.sleeping ? '#9a9184' : R.C.green },
       { x: L.cx + 10, y: L.btnY, w: 140, h: 44, label: '清洁', id: 'bath' },
       { x: L.cx - 150, y: L.btnY + 52, w: 140, h: 44, label: '抚摸', id: 'petact' },
-      { x: L.cx + 10, y: L.btnY + 52, w: 140, h: 44, label: '休息', id: 'rest' },
-      { x: L.cx - 70, y: L.btnY + 104, w: 140, h: 40, label: '纪念相册', id: 'album', fontSize: 13 }
+      { x: L.cx + 10, y: L.btnY + 52, w: 140, h: 44, label: '纪念相册', id: 'album', fontSize: 13 }
     ];
     btns.forEach(function (b) { hotspots.push(b); R.drawButton(ctx, b, t); });
     drawSpeedBar(L, L.h - 14);
@@ -280,8 +295,8 @@
     R.drawPanel(ctx, px, py, pw, ph);
     R.text(ctx, '调试面板（Demo 专用）', L.cx, py + 26, 16, R.C.ink, 'center', '700');
     R.text(ctx, '时间: ' + store.timeScale() + '× · 加速用于验证孵化/寿命', L.cx, py + 50, 11, R.C.inkSoft, 'center');
-    var labels = ['速度×' + CFG.TIME_SCALE[store.save.meta.timeScaleIndex], '+6小时', '注入后代', '强制病变死亡', '强制自然死亡', '重置存档'];
-    var ids = ['speed', 'adv6h', 'inject', 'killIllness', 'killAge', 'reset'];
+    var labels = ['速度×' + CFG.TIME_SCALE[store.save.meta.timeScaleIndex], '+6小时', '注入后代', '入睡/唤醒', '强制病变死亡', '强制自然死亡', '重置存档'];
+    var ids = ['speed', 'adv6h', 'inject', 'sleepToggle', 'killIllness', 'killAge', 'reset'];
     var cols = 2, bw = (pw - 60) / 2, bh = 42;
     labels.forEach(function (label, i) {
       var b = {
@@ -294,7 +309,7 @@
       }
       hotspots.push(b); R.drawButton(ctx, b, t);
     });
-    R.text(ctx, '提示：调试注入后代后可验证单线继承', L.cx, py + 80 + 3 * (bh + 12) + 8, 11, R.C.inkSoft, 'center');
+    R.text(ctx, '提示：可验证自动入睡、单线继承与死亡分支', L.cx, py + ph - 76, 11, R.C.inkSoft, 'center');
     var b = { x: L.cx - 60, y: py + ph - 46, w: 120, h: 36, label: '返回', id: 'closeOverlay', primary: true, color: R.C.green };
     hotspots.push(b); R.drawButton(ctx, b, t);
   }
@@ -318,7 +333,10 @@
       case 'feed': store.feed(); break;
       case 'bath': store.interact('bath'); break;
       case 'petact': store.interact('pet'); break;
-      case 'rest': store.interact('rest'); break;
+      case 'sleepToggle':
+        var sleepingNow = !!(store.save.mainPet && store.save.mainPet.sleeping);
+        if (store.debugSetSleep(!sleepingNow)) showToast(sleepingNow ? '已唤醒' : '已强制入睡');
+        break;
       case 'album': overlay = 'album'; break;
       case 'debug': overlay = 'debug'; break;
       case 'closeOverlay': overlay = null; break;

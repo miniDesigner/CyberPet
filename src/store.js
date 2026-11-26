@@ -60,6 +60,12 @@
   Store.prototype._load = function () {
     if (this.memoryOnly) return null;
     var raw = PLAT && PLAT.getStorage && PLAT.getStorage(CFG.SAVE_KEY);
+    // 兼容旧存档：自动休息字段缺失时按清醒初始化
+    if (raw && raw.version === 1) {
+      [raw.mainPet, raw.offspringSlot].forEach(function (pet) {
+        if (pet && typeof pet.sleeping !== 'boolean') pet.sleeping = false;
+      });
+    }
     return raw && raw.version === 1 ? raw : null;
   };
 
@@ -166,6 +172,8 @@
       postpartum: null,
       bloodlineContribution: 0,
       weakMs: 0,
+      sleeping: false,
+      sleepCount: 0,
       alive: true,
       deathAt: null,
       deathReason: null
@@ -252,7 +260,12 @@
     s.satiety = clamp(s.satiety + dec.satiety * hours * factor, 0, 100);
     s.hygiene = clamp(s.hygiene + dec.hygiene * hours * factor, 0, 100);
     s.mood    = clamp(s.mood    + dec.mood    * hours * factor, 0, 100);
-    s.energy  = clamp(s.energy  + dec.energy  * hours * factor, 0, 100);
+    // 休息是自动行为：睡眠中精力自行恢复，不再叠加衰减
+    if (pet.sleeping) {
+      s.energy = clamp(s.energy + CFG.REST.recoverPerHour * hours * factor, 0, 100);
+    } else {
+      s.energy = clamp(s.energy + dec.energy * hours * factor, 0, 100);
+    }
 
     // 健康派生
     var healthDelta = 0;
@@ -265,6 +278,16 @@
       healthDelta += 0.5 * hours * factor; // 照顾良好缓慢恢复
     }
     s.health = clamp(s.health + healthDelta, 0, 100);
+
+    // 自动入睡 / 自然醒：精力过低自行休息，恢复到阈值自行醒来
+    if (!pet.sleeping && s.energy < CFG.REST.enterEnergy && s.health >= CFG.REST.weakGuard) {
+      this._sleep(pet);
+    } else if (pet.sleeping && s.energy >= CFG.REST.wakeEnergy) {
+      this._wake(pet);
+    } else if (pet.sleeping && s.health < CFG.REST.weakGuard) {
+      // 睡眠中转为虚弱时强制唤醒，否则禁止喂食会造成无法救治
+      this._wake(pet, true);
+    }
 
     // 虚弱计时与病变死亡
     if (s.health < CFG.HEALTH.weakThreshold) {
@@ -305,6 +328,41 @@
     }
 
     this.persist();
+  };
+
+  // ---------- 自动休息 ----------
+  Store.prototype._sleep = function (pet) {
+    pet.sleeping = true;
+    pet.sleepStartedAt = now();
+    pet.sleepCount = (pet.sleepCount || 0) + 1;
+    this._emit('sleep_start', { pet: pet });
+    this._record(pet.id, 'sleep_start', { energy: Math.round(pet.stats.energy) });
+    if (pet.sleepCount === 1) {
+      this._album(pet.id, pet.stage, Math.floor(pet.ageDays),
+        '它自己睡着了', '玩累了，蜷起来打了个盹。');
+    }
+  };
+
+  Store.prototype._wake = function (pet, forced) {
+    pet.sleeping = false;
+    pet.sleepStartedAt = null;
+    this._emit('sleep_end', { pet: pet, forced: !!forced });
+    this._record(pet.id, 'sleep_end', { forced: !!forced, energy: Math.round(pet.stats.energy) });
+  };
+
+  // 调试：强制入睡 / 唤醒，用于验证自动休息相关表现
+  Store.prototype.debugSetSleep = function (on) {
+    var pet = this.save.mainPet;
+    if (!pet || !pet.alive) return false;
+    if (on && !pet.sleeping) {
+      pet.stats.energy = Math.min(pet.stats.energy, CFG.REST.enterEnergy - 1);
+      this._sleep(pet);
+    } else if (!on && pet.sleeping) {
+      pet.stats.energy = CFG.REST.wakeEnergy;
+      this._wake(pet);
+    }
+    this.persist();
+    return true;
   };
 
   Store.prototype._offlineFactor = function (deltaReal) {
@@ -366,7 +424,8 @@
       lifespanRange: sp.lifespanRange.slice(),
       actualLifespan: randInt(sp.lifespanRange[0], sp.lifespanRange[1]),
       parents: [parent.id], offspring: [], pregnancy: null, postpartum: null,
-      bloodlineContribution: 0, weakMs: 0, alive: true, deathAt: null, deathReason: null
+      bloodlineContribution: 0, weakMs: 0, sleeping: false, sleepCount: 0,
+      alive: true, deathAt: null, deathReason: null
     };
     parent.offspring.push(child.id);
     this.save.offspringSlot = child;
@@ -394,7 +453,6 @@
     if (inc.hygiene) s.hygiene = clamp(s.hygiene + inc.hygiene, 0, 100);
     if (inc.mood) s.mood = clamp(s.mood + inc.mood, 0, 100);
     if (inc.health) s.health = clamp(s.health + inc.health, 0, 100);
-    if (inc.energyPerMinute) s.energy = clamp(s.energy + inc.energyPerMinute, 0, 100); // Demo：点击=1分钟休息
     if (s.health >= CFG.HEALTH.weakThreshold && pet.weakMs > 0) {
       pet.weakMs = 0;
       this._emit('weak_recovered', { pet: pet });
@@ -407,6 +465,11 @@
   Store.prototype.feed = function () {
     var pet = this.save.mainPet;
     if (!pet) return false;
+    // 睡眠期间禁止喂食：宠物自行恢复精力，此时打扰会打断休息
+    if (pet.sleeping) {
+      this._emit('feed_blocked', { pet: pet, reason: 'sleeping' });
+      return false;
+    }
     var food = CFG.SPECIES[pet.species].diet === '植食' ? 'plant' : 'meat';
     return this.interact(food);
   };
