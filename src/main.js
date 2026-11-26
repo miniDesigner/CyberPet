@@ -137,14 +137,16 @@
   }
 
   function drawAdopt(L) {
-    var egg = store.currentEgg();
+    var eggs = store.save.eggs;
     drawHeader(L, 'CyberPet', '电子宠物 · 阶段二 Demo');
-    if (!egg) {
+    if (!eggs.length) {
       R.text(ctx, '你还没有宠物', L.cx, L.h * 0.4, 18, R.C.inkSoft, 'center');
-      var b = { x: L.cx - 80, y: L.h * 0.48, w: 160, h: 48, label: '领养一枚蛋', id: 'adopt', primary: true, color: R.C.green };
+      var b = { x: L.cx - 85, y: L.h * 0.48, w: 170, h: 48, label: '挑选一枚蛋', id: 'adopt', primary: true, color: R.C.green };
       hotspots.push(b); R.drawButton(ctx, b, t);
       return;
     }
+    if (eggs.length > 1) { drawEggChoice(L, eggs); return; }
+    var egg = eggs[0];
     R.text(ctx, '一枚来路不明的蛋', L.cx, L.h * 0.24, 17, R.C.ink, 'center', '600');
     R.text(ctx, '观察它的外形，猜猜是谁', L.cx, L.h * 0.24 + 24, 12, R.C.inkSoft, 'center');
     R.drawEgg(ctx, egg, L.cx, L.stageY, L.stageScale, t);
@@ -162,6 +164,22 @@
       { x: L.cx + 10, y: L.btnY, w: 140, h: 48, label: store.canHatch() ? '破壳！' : '还不能破壳', id: 'hatch', primary: store.canHatch(), color: R.C.yellow }
     ];
     btns.forEach(function (b) { hotspots.push(b); R.drawButton(ctx, b, t); });
+    drawSpeedBar(L, L.h - 58);
+  }
+
+  // 领养：三枚并排任选其一，纯靠颜色 × 纹理辨识，无任何种类文字提示
+  function drawEggChoice(L, eggs) {
+    R.text(ctx, '挑一枚带回家', L.cx, L.h * 0.2, 18, R.C.ink, 'center', '700');
+    R.text(ctx, '颜色与纹理是唯一线索，图鉴里有对照', L.cx, L.h * 0.2 + 26, 12, R.C.inkSoft, 'center');
+    var gap = Math.min(120, L.w / 3);
+    eggs.forEach(function (egg, i) {
+      var x = L.cx + (i - 1) * gap, y = L.stageY;
+      R.rr(ctx, x - 46, y + 62, 92, 10, 5);
+      ctx.fillStyle = 'rgba(0,0,0,0.08)'; ctx.fill();
+      R.drawEgg(ctx, egg, x, y, 0.62, t + i * 320);
+      hotspots.push({ x: x - 50, y: y - 70, w: 100, h: 150, id: 'chooseEgg', eggId: egg.id });
+    });
+    R.text(ctx, '点击任意一枚带走', L.cx, L.h * 0.62, 12, R.C.inkSoft, 'center');
     drawSpeedBar(L, L.h - 58);
   }
 
@@ -321,7 +339,10 @@
     PLAT && PLAT.vibrate && PLAT.vibrate();
     var pet = store.save.mainPet;
     switch (btn.id) {
-      case 'adopt': store.adoptEgg('random'); break;
+      case 'adopt': store.adoptEggs(); break;
+      case 'chooseEgg':
+        if (store.chooseEgg(btn.eggId)) showToast('带走了一枚蛋');
+        break;
       case 'careEgg':
         if (store.careEgg()) showToast('你轻轻照看了蛋');
         break;

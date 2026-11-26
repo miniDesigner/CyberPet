@@ -87,8 +87,8 @@
     ctx.fill();
     ctx.restore();
 
-    var w = egg.appearance === 'wave' ? 56 : (egg.appearance === 'shield' ? 68 : 64);
-    var h = egg.appearance === 'wave' ? 92 : 82;
+    // 统一蛋形：形状不提供辨识线索，只能靠颜色 × 纹理判断种类
+    var w = 62, h = 86;
 
     // 蛋体
     var g = ctx.createRadialGradient(-w * 0.3, -h * 0.3, 4, 0, 0, h);

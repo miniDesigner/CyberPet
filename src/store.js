@@ -93,10 +93,9 @@
   };
 
   // ---------- 蛋 ----------
-  Store.prototype.adoptEgg = function (source) {
-    var key = pick(CFG.SPECIES_KEYS);
+  Store.prototype._makeEgg = function (key, source) {
     var sp = CFG.SPECIES[key];
-    var egg = {
+    return {
       id: uid('egg'),
       species: key,
       appearance: sp.egg.pattern,
@@ -108,10 +107,38 @@
       careCount: 0,
       createdAt: now()
     };
+  };
+
+  // 补偿蛋 / 测试用：单枚随机蛋
+  Store.prototype.adoptEgg = function (source) {
+    var egg = this._makeEgg(pick(CFG.SPECIES_KEYS), source);
     this.save.eggs.push(egg);
     this.persist();
     this._emit('egg_obtained', { egg: egg });
     return egg;
+  };
+
+  // 领养：推送三枚蛋（三种各一枚），位置随机打乱；外观固定绑定种类，靠颜色×纹理辨识
+  Store.prototype.adoptEggs = function () {
+    var keys = CFG.SPECIES_KEYS.slice();
+    for (var i = keys.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = keys[i]; keys[i] = keys[j]; keys[j] = tmp;
+    }
+    this.save.eggs = keys.map(function (k) { return this._makeEgg(k, 'random'); }, this);
+    this.persist();
+    this._emit('eggs_offered', { eggs: this.save.eggs.slice() });
+    return this.save.eggs.slice();
+  };
+
+  // 选定一枚带走，其余退回；此后才开始孵化计时
+  Store.prototype.chooseEgg = function (eggId) {
+    var chosen = this.save.eggs.filter(function (e) { return e.id === eggId; })[0];
+    if (!chosen) return null;
+    this.save.eggs = [chosen];
+    this.persist();
+    this._emit('egg_chosen', { egg: chosen });
+    return chosen;
   };
 
   Store.prototype.currentEgg = function () {
@@ -228,8 +255,8 @@
     var deltaGameMs = deltaReal * scale;
     var hours = deltaGameMs / HOUR;
 
-    // 蛋计时（不衰减）
-    var egg = this.currentEgg();
+    // 蛋计时（不衰减）：三枚待选阶段不计时，选定后才开始
+    var egg = this.save.eggs.length === 1 ? this.currentEgg() : null;
     if (egg) {
       var before = egg.ageMs;
       egg.ageMs += deltaGameMs;

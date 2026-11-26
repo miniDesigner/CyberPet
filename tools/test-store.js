@@ -206,6 +206,35 @@ test('调试加速档位生效', () => {
   st.setTimeScale(0);
 });
 
+test('领养推送三枚蛋（三种各一），选择后只剩一枚', () => {
+  const st = mk();
+  const eggs = st.adoptEggs();
+  assert.strictEqual(eggs.length, 3, '应推送三枚');
+  assert.strictEqual(new Set(eggs.map(e => e.species)).size, 3, '三种恐龙各一枚');
+  const picked = eggs[1];
+  assert.strictEqual(st.chooseEgg(picked.id).id, picked.id, '选中的应是点击的那枚');
+  assert.strictEqual(st.save.eggs.length, 1, '其余两枚应退回');
+  assert.strictEqual(st.currentEgg().species, picked.species);
+});
+
+test('三枚待选期间不计时，选定后才开始孵化', () => {
+  const st = mk();
+  st.adoptEggs();
+  step(st, 24);
+  assert(st.save.eggs.every(e => e.ageMs === 0), '待选阶段不应推进孵化');
+  st.chooseEgg(st.save.eggs[0].id);
+  step(st, 24);
+  assert(st.currentEgg().ageMs > 0, '选定后应开始计时');
+});
+
+test('蛋外观为组合主导：共享底色 + 共享纹理，单看一维无法定种', () => {
+  const a = CFG.SPECIES.trex.egg, b = CFG.SPECIES.plesiosaurus.egg, c = CFG.SPECIES.triceratops.egg;
+  assert.strictEqual(a.color, b.color, '霸王龙与蛇颈龙共享赤陶底色');
+  assert.strictEqual(a.pattern, c.pattern, '霸王龙与三角龙共享鳞纹');
+  assert.notStrictEqual(b.color, c.color, '蛇颈龙与三角龙底色不同');
+  assert.notStrictEqual(b.pattern, c.pattern, '蛇颈龙与三角龙纹理不同');
+});
+
 test('精力低于阈值自动入睡，玩家没有主动休息操作', () => {
   const st = mk();
   const pet = hatchPet(st);

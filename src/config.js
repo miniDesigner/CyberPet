@@ -1,6 +1,6 @@
 /**
  * src/config.js — 静态配置（物种、数值、文案）
- * 数值口径来自 docs/游戏设计文档.md v0.6
+ * 数值口径来自 docs/游戏设计文档.md v0.8
  * 纯数据模块，无副作用，可在 Node / 小游戏 / 浏览器共用。
  */
 (function (root, factory) {
@@ -25,7 +25,8 @@
       baseLifespan: 80,
       // 阶段结束日（自破壳起，基准寿命下）
       stages: { baby: 10, adult: 35, mature: 60, senior: 80 },
-      egg: { color: '#7a3b2e', mark: '#c96a4b', pattern: 'scale' },
+      // 蛋外观：赤陶 + 鳞纹（与蛇颈龙共享底色，与三角龙共享纹理）
+      egg: { color: '#a55c42', mark: '#dd9474', pattern: 'scale' },
       colors: { body: '#8c5a3c', belly: '#d8b98c', mark: '#5e3423', eye: '#f2c14e' },
       games: { single: ['猎物追击', '咆哮节奏'], friend: ['领地争锋', '双龙竞速'] }
     },
@@ -39,7 +40,8 @@
       lifespanRange: [80, 100],
       baseLifespan: 90,
       stages: { baby: 12, adult: 42, mature: 70, senior: 90 },
-      egg: { color: '#2f6f8f', mark: '#7fc4d8', pattern: 'wave' },
+      // 蛋外观：赤陶 + 水波纹（与霸王龙共享底色，靠纹理区分）
+      egg: { color: '#a55c42', mark: '#e8b08e', pattern: 'wave' },
       colors: { body: '#4a7c9b', belly: '#bcd9e2', mark: '#2b5670', eye: '#e8d36a' },
       games: { single: ['深潜捕鱼', '洋流穿梭'], friend: ['深海接力', '波纹共鸣'] }
     },
@@ -53,7 +55,8 @@
       lifespanRange: [100, 120],
       baseLifespan: 110,
       stages: { baby: 15, adult: 50, mature: 85, senior: 110 },
-      egg: { color: '#a98a3c', mark: '#e0c674', pattern: 'shield' },
+      // 蛋外观：青灰 + 鳞纹（与霸王龙共享纹理，靠颜色区分）
+      egg: { color: '#74888a', mark: '#b9cfd0', pattern: 'scale' },
       colors: { body: '#8f8452', belly: '#d6cf9c', mark: '#5a5330', eye: '#c96a4b' },
       games: { single: ['顶角推球', '植食觅途'], friend: ['角力顶撞', '坚盾守护'] }
     }

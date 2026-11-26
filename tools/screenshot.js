@@ -23,8 +23,15 @@ fs.mkdirSync(OUT, { recursive: true });
   await page.waitForTimeout(300);
   await page.screenshot({ path: path.join(OUT, '01-adopt.png') });
 
-  // 领养（按钮中心约 y=404）
+  // 领养 → 三枚蛋并排待选
   await page.mouse.click(210, 404);
+  await page.waitForTimeout(250);
+  await page.screenshot({ path: path.join(OUT, '02-choice.png') });
+  const offer = await page.evaluate(() => MAIN.getStore().save.eggs.map(e => ({ species: e.species, appearance: e.appearance, color: e.color })));
+  console.log('三枚待选蛋:', JSON.stringify(offer));
+
+  // 选中间那枚（hotspot 中心约 x=210, y=357）
+  await page.mouse.click(210, 350);
   await page.waitForTimeout(250);
   await page.screenshot({ path: path.join(OUT, '02-egg.png') });
 
