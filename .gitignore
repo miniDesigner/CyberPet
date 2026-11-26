@@ -1,5 +1,6 @@
 # 依赖与工具缓存
 node_modules/
+package-lock.json
 .playwright-cli/
 
 # 日志与本地环境
@@ -10,6 +11,9 @@ node_modules/
 # 临时截图（项目图片资源放在 assets/ 下，不受影响）
 *.png
 !assets/**/*.png
+
+# 微信开发者工具私有配置（本地机器相关，不入库）
+project.private.config.json
 
 # 编辑器 / 系统文件
 .DS_Store
