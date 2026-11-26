@@ -112,6 +112,14 @@
     strong: '强壮型', agile: '敏捷型', standard: '标准型', weathered: '沧桑型'
   };
 
+  // IAA 广告配置
+  var AD = {
+    // 激励视频广告位 ID：流量主开通后填入真实 adUnitId；留空时开发态直接发奖（mock）
+    rewardedUnitId: '',
+    // 三蛋刷新不限次数（本次评审决策）；观看次数仍记录用于埋点
+    refreshUnlimited: true
+  };
+
   // 调试加速档位（仅 Demo，正式版移除）
   var TIME_SCALE = [1, 60, 3600, 86400];
 
@@ -123,6 +131,7 @@
     OFFLINE: OFFLINE,
     HEALTH: HEALTH,
     REST: REST,
+    AD: AD,
     INTERACT: INTERACT,
     STAGE_LABEL: STAGE_LABEL,
     FORM_LABEL: FORM_LABEL,

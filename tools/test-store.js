@@ -206,15 +206,45 @@ test('调试加速档位生效', () => {
   st.setTimeScale(0);
 });
 
-test('领养推送三枚蛋（三种各一），选择后只剩一枚', () => {
+test('领养推送三枚随机蛋（种类可重复），选择后只剩一枚', () => {
   const st = mk();
   const eggs = st.adoptEggs();
   assert.strictEqual(eggs.length, 3, '应推送三枚');
-  assert.strictEqual(new Set(eggs.map(e => e.species)).size, 3, '三种恐龙各一枚');
+  assert(eggs.every(e => CFG.SPECIES_KEYS.includes(e.species)), '每枚种类应合法');
   const picked = eggs[1];
   assert.strictEqual(st.chooseEgg(picked.id).id, picked.id, '选中的应是点击的那枚');
   assert.strictEqual(st.save.eggs.length, 1, '其余两枚应退回');
   assert.strictEqual(st.currentEgg().species, picked.species);
+});
+
+test('随机三枚允许种类重复（统计 200 次应出现重复组合）', () => {
+  let sawDup = false;
+  for (let i = 0; i < 200 && !sawDup; i++) {
+    const st = mk();
+    const eggs = st.adoptEggs();
+    if (new Set(eggs.map(e => e.species)).size < 3) sawDup = true;
+  }
+  assert(sawDup, '随机抽取应能出现两枚或三枚同种');
+});
+
+test('看广告刷新：待选阶段重抽三枚、不限次数、计数递增', () => {
+  const st = mk();
+  st.adoptEggs();
+  const before = st.save.eggs.map(e => e.id);
+  const after = st.refreshEggs();
+  assert.strictEqual(after.length, 3, '刷新后仍为三枚');
+  const afterIds = after.map(e => e.id);
+  assert(afterIds.every(id => !before.includes(id)), '应是全新三枚蛋');
+  st.refreshEggs(); st.refreshEggs(); st.refreshEggs();
+  assert(st.save.meta.adDaily.refreshed >= 4, '刷新不限次数且计数递增');
+});
+
+test('已选定或孵化中不可刷新', () => {
+  const st = mk();
+  st.adoptEggs();
+  st.chooseEgg(st.save.eggs[0].id);
+  assert.strictEqual(st.refreshEggs(), null, '选定后不能刷新');
+  assert.strictEqual(st.save.eggs.length, 1, '存档不应被改变');
 });
 
 test('三枚待选期间不计时，选定后才开始孵化', () => {

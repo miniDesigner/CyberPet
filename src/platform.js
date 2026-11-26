@@ -119,6 +119,41 @@
     try { if (isWx) wx.vibrateShort({ type: 'light' }); } catch (e) {}
   }
 
+  // 激励视频：返回 Promise<boolean>，仅完整看完才 resolve(true)
+  // 小游戏走 wx.createRewardedVideoAd（adUnitId 为空时降级为 mock，避免无广告位报错）
+  // 浏览器预览走 mock：短暂延迟后视为看完，便于 Demo 验证刷新流程
+  var rewardedAd = null;
+  function showRewardedVideo(adUnitId) {
+    return new Promise(function (resolve) {
+      if (isWx && adUnitId && wx.createRewardedVideoAd) {
+        try {
+          if (!rewardedAd || rewardedAd.adUnitId !== adUnitId) {
+            rewardedAd = wx.createRewardedVideoAd({ adUnitId: adUnitId });
+          }
+          var handler = function (res) {
+            rewardedAd.offClose(handler);
+            resolve(!!(res && res.isEnded));
+          };
+          rewardedAd.onClose(handler);
+          rewardedAd.show().catch(function () {
+            return rewardedAd.load().then(function () { return rewardedAd.show(); });
+          }).catch(function () {
+            rewardedAd.offClose(handler);
+            resolve(false);
+          });
+        } catch (e) { resolve(false); }
+      } else {
+        // mock：模拟播放延迟，视为完整观看
+        setTimeout(function () {
+          if (typeof wx !== 'undefined' && wx.showToast) {
+            wx.showToast({ title: '广告演示（预览态）', icon: 'none', duration: 1000 });
+          }
+          resolve(true);
+        }, 400);
+      }
+    });
+  }
+
   return {
     isWx: isWx,
     getCanvas: getCanvas,
@@ -131,6 +166,7 @@
     removeStorage: removeStorage,
     raf: raf,
     toast: toast,
-    vibrate: vibrate
+    vibrate: vibrate,
+    showRewardedVideo: showRewardedVideo
   };
 });

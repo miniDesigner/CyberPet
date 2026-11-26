@@ -118,17 +118,43 @@
     return egg;
   };
 
-  // 领养：推送三枚蛋（三种各一枚），位置随机打乱；外观固定绑定种类，靠颜色×纹理辨识
+  // 随机抽三枚蛋：种类可重复（每枚独立从蛋池抽取），外观固定绑定种类，靠颜色×纹理辨识
+  Store.prototype._drawEggs = function () {
+    var out = [];
+    for (var i = 0; i < 3; i++) out.push(this._makeEgg(pick(CFG.SPECIES_KEYS), 'random'));
+    return out;
+  };
+
+  // 领养：推送三枚随机蛋（种类可重复）
   Store.prototype.adoptEggs = function () {
-    var keys = CFG.SPECIES_KEYS.slice();
-    for (var i = keys.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
-      var tmp = keys[i]; keys[i] = keys[j]; keys[j] = tmp;
-    }
-    this.save.eggs = keys.map(function (k) { return this._makeEgg(k, 'random'); }, this);
+    this.save.eggs = this._drawEggs();
     this.persist();
     this._emit('eggs_offered', { eggs: this.save.eggs.slice() });
     return this.save.eggs.slice();
+  };
+
+  // 看广告刷新：仅在三枚待选阶段有效；重抽三枚，不限次数，记录观看次数用于埋点
+  Store.prototype.refreshEggs = function () {
+    if (this.save.eggs.length <= 1) return null; // 已选定/孵化中不允许刷新
+    this.save.eggs = this._drawEggs();
+    var ad = this.save.meta.adDaily || (this.save.meta.adDaily = { date: '', refreshed: 0, watched: 0 });
+    var today = new Date().toISOString().slice(0, 10);
+    if (ad.date !== today) { ad.date = today; ad.refreshed = 0; ad.watched = 0; }
+    ad.refreshed += 1;
+    ad.watched += 1;
+    this.persist();
+    this._emit('eggs_refreshed', { eggs: this.save.eggs.slice(), count: ad.refreshed });
+    return this.save.eggs.slice();
+  };
+
+  // 广告观看计数（通用埋点，不发奖；发奖由调用方在确认看完后执行）
+  Store.prototype.recordAdWatch = function (placement) {
+    var ad = this.save.meta.adDaily || (this.save.meta.adDaily = { date: '', refreshed: 0, watched: 0 });
+    var today = new Date().toISOString().slice(0, 10);
+    if (ad.date !== today) { ad.date = today; ad.refreshed = 0; ad.watched = 0; }
+    ad.watched += 1;
+    this._emit('ad_watched', { placement: placement || 'unknown' });
+    this.persist();
   };
 
   // 选定一枚带走，其余退回；此后才开始孵化计时

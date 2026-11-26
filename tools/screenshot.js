@@ -30,6 +30,19 @@ fs.mkdirSync(OUT, { recursive: true });
   const offer = await page.evaluate(() => MAIN.getStore().save.eggs.map(e => ({ species: e.species, appearance: e.appearance, color: e.color })));
   console.log('三枚待选蛋:', JSON.stringify(offer));
 
+  // 看广告换一批（按钮中心约 x=210, y=712），预览态 mock 视为看完
+  const beforeIds = await page.evaluate(() => MAIN.getStore().save.eggs.map(e => e.id));
+  await page.mouse.click(210, 712);
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: path.join(OUT, '02b-refreshed.png') });
+  const refreshed = await page.evaluate(() => ({
+    ids: MAIN.getStore().save.eggs.map(e => e.id),
+    count: MAIN.getStore().save.meta.adDaily ? MAIN.getStore().save.meta.adDaily.refreshed : 0
+  }));
+  const isFresh = refreshed.ids.length === 3 && refreshed.ids.every(id => !beforeIds.includes(id));
+  console.log('看广告刷新:', JSON.stringify({ isFresh, count: refreshed.count }));
+  if (!isFresh || refreshed.count < 1) errors.push('ASSERT: 看广告刷新未换成新蛋');
+
   // 选中间那枚（hotspot 中心约 x=210, y=357）
   await page.mouse.click(210, 350);
   await page.waitForTimeout(250);

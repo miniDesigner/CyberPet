@@ -26,6 +26,7 @@
   var scene = 'adopt';
   var deathInfo = null, hatchInfo = null;
   var debugPage = false;
+  var adRefreshing = false;
 
   function layout() {
     var w = size.width, h = size.height;
@@ -180,6 +181,13 @@
       hotspots.push({ x: x - 50, y: y - 70, w: 100, h: 150, id: 'chooseEgg', eggId: egg.id });
     });
     R.text(ctx, '点击任意一枚带走', L.cx, L.h * 0.62, 12, R.C.inkSoft, 'center');
+    // 看广告刷新：看完才重抽，不限次数
+    var rb = {
+      x: L.cx - 90, y: L.btnY + 42, w: 180, h: 40,
+      label: adRefreshing ? '广告播放中…' : '▶ 看广告换一批',
+      id: 'adRefresh', fontSize: 13, color: R.C.blue, disabled: !!adRefreshing
+    };
+    hotspots.push(rb); R.drawButton(ctx, rb, t);
     drawSpeedBar(L, L.h - 58);
   }
 
@@ -340,7 +348,24 @@
     var pet = store.save.mainPet;
     switch (btn.id) {
       case 'adopt': store.adoptEggs(); break;
+      case 'adRefresh':
+        if (adRefreshing) break;
+        adRefreshing = true;
+        (PLAT && PLAT.showRewardedVideo
+          ? PLAT.showRewardedVideo(CFG.AD && CFG.AD.rewardedUnitId)
+          : Promise.resolve(false)
+        ).then(function (done) {
+          adRefreshing = false;
+          if (done) {
+            store.refreshEggs();
+            showToast('换了一批蛋');
+          } else {
+            showToast('看完广告才能换蛋');
+          }
+        });
+        break;
       case 'chooseEgg':
+        if (adRefreshing) break;
         if (store.chooseEgg(btn.eggId)) showToast('带走了一枚蛋');
         break;
       case 'careEgg':
