@@ -1,0 +1,22 @@
+# CyberPet 项目初始化记录
+
+> 日期：2026-11-26　依据：项目资产《新项目启动流程 SOP》v1.1
+
+## 完成内容
+
+1. **前置检查**：`E:\GitRep\` 存在；`Token.txt` 中 PAT 有效（`ghp_` 前缀、40 位）；GitHub 身份为 `miniDesigner`；`CyberPet` 仓库原不存在（404）；项目名符合 CamelCase 规范。
+2. **目录与工作空间**：`E:\GitRep\CyberPet\` 已存在，当前会话工作空间已指向该目录；已建立 `.workbuddy/memory/`，工作日志随项目一起纳入 git。
+3. **默认工作空间**：已将 `app-config.json` 的 `defaultWorkspacePath` 从 `E:\GitRep\HappyFarm` 改为 `E:\GitRep\CyberPet`（改前已备份），并同步用户级长期记忆。
+4. **仓库创建**：GitHub 连接器写入返回 403（只读权限），按 SOP 踩坑记录改用 PAT 经 GitHub API 创建同名空仓库（`autoInit: false`、public）。
+5. **基础文件**：已创建 `README.md`、`.gitignore`，本地 `git init -b main` 并提交首个 commit，经 HTTPS + Token 推送到远程 `main`。
+
+## 关键决策
+
+- `.gitignore` **不排除** `.workbuddy/`，遵守 SOP 2.4；忽略 `*.png` 但用 `!assets/**/*.png` 保留正式图片资源。
+- 仓库设为 public，简介「赛博宠物主题微信小游戏」——均由用户确认。
+- 全程 HTTPS + PAT，未使用 SSH；Token 未写入仓库文件、未落盘、未回显。
+
+## 后续事项
+
+- 默认工作空间改动对**新建任务**生效；当前会话不变，必要时重启 WorkBuddy。
+- 按项目六阶段流程，下一步进入「阶段一：完成小游戏项目的设计内容」。
