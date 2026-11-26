@@ -67,6 +67,7 @@ python -m http.server 8901
 ## 文档索引
 
 - [游戏设计文档](./docs/游戏设计文档.md) — 阶段一设计产出（v0.8）
+- [IAA 商业化设计方案](./docs/IAA商业化设计方案.md) — 广告变现与「福利站」设计草案（v0.1，待评审）
 - 新项目启动流程 SOP（存放于 WorkBuddy 项目资产，v1.1）
 - [overview.md](./overview.md) — 项目初始化与阶段进展记录
 
