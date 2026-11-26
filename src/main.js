@@ -6,18 +6,20 @@
  * 每帧：结算状态 → 处理事件 → 绘制 → 响应输入
  */
 (function (root, factory) {
-  var isNode = (typeof module !== 'undefined' && module.exports);
-  var CFG = isNode ? require('./config') : root.CONFIG;
-  var R = isNode ? require('./render') : root.RENDER;
-  var I = isNode ? require('./input') : root.INPUT;
-  var mod = factory(CFG, R, I, isNode, root);
-  if (isNode) module.exports = mod;
+  // 三种环境：真 Node（单测）/ 浏览器预览 / 微信小游戏（CommonJS + wx API）
+  // 小游戏也有 module.exports，若按 isNode 处理会跳过画布与主循环导致黑屏。
+  var useReq = (typeof module !== 'undefined' && module.exports);
+  var isWx = typeof wx !== 'undefined' && !!wx.createCanvas;
+  var CFG = useReq ? require('./config') : root.CONFIG;
+  var R = useReq ? require('./render') : root.RENDER;
+  var I = useReq ? require('./input') : root.INPUT;
+  var PLAT = isWx ? require('./platform') : (useReq ? null : root.PLATFORM);
+  var Store = useReq ? require('./store').Store : root.STORE.Store;
+  var mod = factory(CFG, R, I, PLAT, Store, root);
+  if (useReq) module.exports = mod;
   else root.MAIN = mod;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (CFG, R, I, isNode, root) {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (CFG, R, I, PLAT, Store, root) {
   'use strict';
-
-  var PLAT = isNode ? null : root.PLATFORM;
-  var Store = isNode ? require('./store').Store : root.STORE.Store;
 
   var store, ctx, size, hotspots = [], overlay = null;
   var t = 0, lastFrame = 0, toastMsg = '', toastUntil = 0;
@@ -41,7 +43,7 @@
     options = options || {};
     store = options.store || new Store();
     store.on(onEvent);
-    if (!isNode) {
+    if (PLAT) {
       ctx = PLAT.getContext();
       size = PLAT.size();
       PLAT.bindInput();

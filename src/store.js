@@ -8,14 +8,14 @@
  * Debug 加速档位见 CONFIG.TIME_SCALE，正式版应将 timeScale 固定为 1。
  */
 (function (root, factory) {
-  var CFG = (typeof module !== 'undefined' && module.exports)
-    ? require('./config')
-    : root.CONFIG;
-  var PLAT = (typeof module !== 'undefined' && module.exports)
-    ? null
-    : root.PLATFORM;
+  // 三种环境：真 Node（单测）/ 浏览器预览 / 微信小游戏（CommonJS + wx API）
+  // 小游戏同样存在 module.exports，不能据此判定为 Node，否则平台层丢失、存档退化为内存。
+  var useReq = (typeof module !== 'undefined' && module.exports);
+  var isWx = typeof wx !== 'undefined' && !!wx.createCanvas;
+  var CFG = useReq ? require('./config') : root.CONFIG;
+  var PLAT = isWx ? require('./platform') : (useReq ? null : root.PLATFORM);
   var mod = factory(CFG, PLAT);
-  if (typeof module !== 'undefined' && module.exports) module.exports = mod;
+  if (useReq) module.exports = mod;
   else root.STORE = mod;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function (CFG, PLAT) {
   'use strict';
